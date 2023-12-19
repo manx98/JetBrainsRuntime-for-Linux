@@ -1,4 +1,4 @@
-name: jbr-linux-x64
+name: jbr-linux-aarch64
 
 on:
   workflow_dispatch:
@@ -19,6 +19,8 @@ jobs:
     steps:
     - name: Clone Repository
       uses: actions/checkout@v3
+      with:
+        platform: 'linux-aarch64'
 
     - name: Generate Variables
       id: vars
@@ -71,9 +73,9 @@ jobs:
 
     - name: Prepare JCEF
       run: |
-        aria2c -o jbrsdk_jcef.tgz 'https://cache-redirector.jetbrains.com/intellij-jbr/jbrsdk_jcef-${{ steps.vars.outputs.JBSDK_VERSION }}-linux-x64-b${{ steps.vars.outputs.build_number }}.tar.gz'
-        mkdir jcef_linux_x64
-        tar -zxvf jbrsdk_jcef.tgz --strip-components=1 -C jcef_linux_x64 --wildcards -- 'jbrsdk_jcef-*/jmods/gluegen.rt.jmod' 'jbrsdk_jcef-*/jmods/jogl.all.jmod' 'jbrsdk_jcef-*/jmods/jcef.jmod'
+        aria2c -o jbrsdk_jcef.tgz 'https://cache-redirector.jetbrains.com/intellij-jbr/jbrsdk_jcef-${{ steps.vars.outputs.JBSDK_VERSION }}-linux-aarch64-b${{ steps.vars.outputs.build_number }}.tar.gz'
+        mkdir jcef_linux_aarch64
+        tar -zxvf jbrsdk_jcef.tgz --strip-components=1 -C jcef_linux_aarch64 --wildcards -- 'jbrsdk_jcef-*/jmods/gluegen.rt.jmod' 'jbrsdk_jcef-*/jmods/jogl.all.jmod' 'jbrsdk_jcef-*/jmods/jcef.jmod'
         rm -f jbrsdk_jcef.tgz
 
     - name: Clone JBR Repository
@@ -81,7 +83,7 @@ jobs:
       with:
         repository: JetBrains/JetBrainsRuntime
         ref: ${{ steps.vars.outputs.ref }}
-        fetch-depth: 0 # 这里必须拉取全部历史，下面的mkimages_x64.sh里面会通过git log找tag
+        fetch-depth: 0 # 这里必须拉取全部历史，下面的mkimages_aarch64.sh里面会通过git log找tag
         path: JetBrainsRuntime
 
     - name: Patch & Compile JetBrainsRuntime with JCEF
@@ -92,34 +94,34 @@ jobs:
 
         patch -p1 < ../idea.patch
 
-        mv ../jcef_linux_x64 ./
+        mv ../jcef_linux_aarch64 ./
 
-        export BOOT_JDK="$JAVA_HOME_17_X64"
+        export BOOT_JDK="$JAVA_HOME_17_AARCH64"
 
-        jb/project/tools/linux/scripts/mkimages_x64.sh '${{ steps.vars.outputs.build_number }}' jcef
+        jb/project/tools/linux/scripts/mkimages_aarch64.sh '${{ steps.vars.outputs.build_number }}' jcef
 
-        echo ::set-output name=jbr_image::"$(ls -1 jbr_jcef-*-linux-x64-*.tar.gz)"
+        echo ::set-output name=jbr_image::"$(ls -1 jbr_jcef-*-linux-aarch64-*.tar.gz)"
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.vars.outputs.tag_name }}
-        release_name:  ${{ steps.vars.outputs.release_name }}
-        body: ${{ steps.vars.outputs.release_body }}
-        draft: false
-        prerelease: true
+    # - name: Create Release
+    #   id: create_release
+    #   uses: actions/create-release@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     tag_name: ${{ steps.vars.outputs.tag_name }}
+    #     release_name:  ${{ steps.vars.outputs.release_name }}
+    #     body: ${{ steps.vars.outputs.release_body }}
+    #     draft: false
+    #     prerelease: true
 
-    - name: Upload Release Asset
-      id: upload-release-asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: JetBrainsRuntime/${{ steps.compile.outputs.jbr_image }}
-        asset_name: ${{ steps.compile.outputs.jbr_image }}
-        asset_content_type: application/gzip
+    # - name: Upload Release Asset
+    #   id: upload-release-asset
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_path: JetBrainsRuntime/${{ steps.compile.outputs.jbr_image }}
+    #     asset_name: ${{ steps.compile.outputs.jbr_image }}
+    #     asset_content_type: application/gzip
 
